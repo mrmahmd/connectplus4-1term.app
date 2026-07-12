@@ -1,0 +1,10 @@
+CONNECT PLUS PRIMARY 4 - GITHUB FLAT UPLOAD
+
+1. Extract this ZIP file.
+2. Open the extracted folder.
+3. Select ALL files inside it.
+4. On GitHub choose: Add file > Upload files.
+5. Drag all selected files into the upload box.
+6. Click Commit changes.
+
+Important: index.html, app.js, styles.css, and all image files must be uploaded together.
