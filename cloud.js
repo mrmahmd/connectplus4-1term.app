@@ -129,8 +129,8 @@
       const created=await client.from('profiles').insert({id:user.id,student_code:identity.studentCode,full_name:identity.name,class_name:identity.className}).select('student_code,full_name,class_name,avatar_path').single();
       if(created.error)throw created.error;
       row=created.data;
-    }else if(row.full_name!==identity.name||row.class_name!==identity.className){
-      const updated=await client.from('profiles').update({full_name:identity.name,class_name:identity.className}).eq('id',user.id).select('student_code,full_name,class_name,avatar_path').single();
+    }else if(row.class_name!==identity.className){
+      const updated=await client.from('profiles').update({class_name:identity.className}).eq('id',user.id).select('student_code,full_name,class_name,avatar_path').single();
       if(updated.error)throw updated.error;
       row=updated.data;
     }
@@ -226,36 +226,67 @@
     return merged;
   }
 
-  async function connectStudent({studentCode,pin,name,className}){
-    if(!client)throw new Error('Cloud service could not load. Continue offline and try again later.');
-    const code=normalizeCode(studentCode||(profile&&profile.student_code));
-    if(!session){
-      if(!/^[A-Z0-9_-]{3,30}$/.test(code))throw new Error('Username must use 3–30 English letters or numbers.');
-      if(!/^\d{6}$/.test(String(pin||'')))throw new Error('PIN must contain exactly 6 numbers.');
-      emitStatus('syncing','Connecting securely…');
-      let auth=await client.auth.signInWithPassword({email:emailForCode(code),password:String(pin)});
-      if(auth.error&&isLoginError(auth.error)){
-        auth=await client.auth.signUp({
-          email:emailForCode(code),
-          password:String(pin),
-          options:{data:{student_code:code,full_name:name,class_name:className}}
-        });
-        if(auth.error){
-          if(String(auth.error.message||'').toLowerCase().includes('already'))throw new Error('This Username already exists. Check your PIN or choose another Username.');
-          throw auth.error;
-        }
-        if(!auth.data.session)throw new Error('Account created, but email confirmation is still enabled in Supabase.');
-      }else if(auth.error){
-        throw auth.error;
-      }
-      session=auth.data.session;
-    }
+  function validateCredentials(studentCode,pin){
+    const code=normalizeCode(studentCode);
+    if(!/^[A-Z0-9_-]{3,30}$/.test(code))throw new Error('Username must use 3–30 English letters or numbers.');
+    if(!/^\d{6}$/.test(String(pin||'')))throw new Error('PIN must contain exactly 6 numbers.');
+    return code;
+  }
+
+  async function finishStudentConnection(code,name,className){
     const currentCode=code||normalizeCode(session.user.user_metadata&&session.user.user_metadata.student_code);
     const identity={studentCode:currentCode,userId:session.user.id,name:String(name||'Student').trim(),className:String(className||'').trim()};
     const savedProfile=await ensureProfile(session.user,identity);
     identity.studentCode=normalizeCode(savedProfile.student_code);
+    identity.name=savedProfile.full_name;
+    identity.className=savedProfile.class_name;
     await loadCloudState(identity);
     return {signedIn:true,studentCode:identity.studentCode,profile:clone(savedProfile)};
+  }
+
+  async function leaveCurrentSession(){
+    if(!session)return;
+    await pushProgress();
+    await client.auth.signOut();
+    session=null;
+    profile=null;
+  }
+
+  async function signInStudent({studentCode,pin,name,className}){
+    if(!client)throw new Error('Cloud service could not load. Continue offline and try again later.');
+    const requested=normalizeCode(studentCode||(profile&&profile.student_code));
+    const active=normalizeCode(profile&&profile.student_code);
+    if(session&&requested&&requested===active)return finishStudentConnection(active,name,className);
+    const code=validateCredentials(requested,pin);
+    if(session)await leaveCurrentSession();
+    emitStatus('syncing','Signing in securely…');
+    const auth=await client.auth.signInWithPassword({email:emailForCode(code),password:String(pin)});
+    if(auth.error){
+      if(isLoginError(auth.error))throw new Error('Username or PIN is incorrect. First time here? Choose Create New Account.');
+      throw auth.error;
+    }
+    session=auth.data.session;
+    return finishStudentConnection(code,name,className);
+  }
+
+  async function createStudent({studentCode,pin,name,className}){
+    if(!client)throw new Error('Cloud service could not load. Continue offline and try again later.');
+    const code=validateCredentials(studentCode,pin);
+    if(session&&code===normalizeCode(profile&&profile.student_code))throw new Error('This account already exists on this device. Choose Sign In.');
+    if(session)await leaveCurrentSession();
+    emitStatus('syncing','Creating your account…');
+    const auth=await client.auth.signUp({
+      email:emailForCode(code),
+      password:String(pin),
+      options:{data:{student_code:code,full_name:name,class_name:className}}
+    });
+    if(auth.error){
+      if(String(auth.error.message||'').toLowerCase().includes('already'))throw new Error('This Username already exists. Choose Sign In or create another Username.');
+      throw auth.error;
+    }
+    if(!auth.data.session)throw new Error('Account could not start because email confirmation is enabled in Supabase.');
+    session=auth.data.session;
+    return finishStudentConnection(code,name,className);
   }
 
   async function restoreSession(){
@@ -340,7 +371,8 @@
     getStatus:()=>({...status,signedIn:!!session}),
     getStudentCode:()=>normalizeCode(profile&&profile.student_code),
     init:restoreSession,
-    connectStudent,
+    signInStudent,
+    createStudent,
     scheduleSync,
     syncNow:pushProgress,
     refreshHero,

@@ -10,24 +10,26 @@
 <body>
   <section id="splash" class="splash">
     <div class="hero">
-      <div>
-        <div class="creator-banner"><span>Prepared and Designed by</span><strong>Mr.Mohamed Farid</strong></div>
-        <div class="eyebrow">Interactive Learning Journey</div>
-        <h1>Connect Plus<br>Primary 4</h1>
-        <p>Explore six exciting units, master English step by step, collect rewards, and continue exactly where you stopped.</p>
-        <div id="resumeNote" class="resume-note hidden"></div>
-        <div class="field"><label for="studentName">STUDENT NAME</label><input id="studentName" maxlength="35" placeholder="Type your name"></div>
-        <div class="field"><label for="studentClass">CLASS</label><select id="studentClass"><option value="">Choose your class</option><option>4A</option><option>4B</option><option>4C</option><option>4D</option><option>Other</option></select></div>
-        <div class="cloud-login-grid">
+      <div class="splash-horizontal-layout">
+        <div class="splash-intro">
+          <div class="creator-banner"><span>Prepared and Designed by</span><strong>Mr.Mohamed Farid</strong></div>
+          <div class="eyebrow">Interactive Learning Journey</div>
+          <h1>Connect Plus<br>Primary 4</h1>
+          <p>Explore six exciting units, master English step by step, collect rewards, and continue exactly where you stopped.</p>
+        </div>
+        <div class="splash-login-card">
+          <div id="resumeNote" class="resume-note hidden"></div>
+          <div class="student-access-row">
+            <div class="field"><label for="studentClass">CLASS</label><select id="studentClass"><option value="">Choose your class</option><option>4A</option><option>4B</option><option>4C</option><option>4D</option><option>Other</option></select></div>
           <div class="field"><label for="studentCode">USERNAME</label><input id="studentCode" maxlength="30" autocomplete="username" autocapitalize="characters" spellcheck="false" placeholder="Example: AHMED4A15"></div>
           <div class="field"><label for="studentPin">6-DIGIT PIN</label><input id="studentPin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="current-password" placeholder="••••••"></div>
-        </div>
-        <div class="cloud-login-note"><span>☁</span><span><strong>First time?</strong> Create a unique Username and a 6-digit PIN. Use them again to continue your progress on any device.</span></div>
-        <button id="startBtn" class="primary-btn">Sign In &amp; Open My Dashboard →</button>
-        <button id="offlineBtn" class="offline-btn">Continue on This Device Only</button>
-        <div id="splashResumeActions" class="splash-resume-actions hidden">
-          <button id="splashResumePage" class="resume-action page-action"><span><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M3 5c4-1 7 0 9 3v13c-2-3-5-4-9-3V5ZM21 5c-4-1-7 0-9 3v13c2-3 5-4 9-3V5Z"/></svg></span><strong>Continue Last Page</strong><small>Return to your last study section</small></button>
-          <button id="splashResumeQuestion" class="resume-action question-action"><span><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.8 2.8 0 1 1 4.8 2c-1.3 1-2.3 1.5-2.3 3M12 18h.01"/></svg></span><strong>Continue Last Question</strong><small>Return to your saved practice question</small></button>
+          </div>
+          <div class="cloud-login-note"><span>☁</span><span><strong>New student?</strong> Choose Create New Account. Already registered? Choose Sign In to continue your progress on any device.</span></div>
+          <div class="entry-actions"><button id="startBtn" class="primary-btn">Sign In →</button><button id="createAccountBtn" class="create-account-btn">Create New Account</button><button id="offlineBtn" class="offline-btn">This Device Only</button></div>
+          <div id="splashResumeActions" class="splash-resume-actions hidden">
+            <button id="splashResumePage" class="resume-action page-action"><span><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M3 5c4-1 7 0 9 3v13c-2-3-5-4-9-3V5ZM21 5c-4-1-7 0-9 3v13c2-3 5-4 9-3V5Z"/></svg></span><strong>Continue Last Page</strong><small>Return to your last study section</small></button>
+            <button id="splashResumeQuestion" class="resume-action question-action"><span><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.8 2.8 0 1 1 4.8 2c-1.3 1-2.3 1.5-2.3 3M12 18h.01"/></svg></span><strong>Continue Last Question</strong><small>Return to your saved practice question</small></button>
+          </div>
         </div>
       </div>
     </div>

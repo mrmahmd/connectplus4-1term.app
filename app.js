@@ -673,7 +673,7 @@
   function studentInitials(){return (state.profile.name||'Student').split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase()||'S'}
   function updateCloudStatus(){const el=$('#cloudStatus');if(!el)return;el.className=`cloud-status ${cloudUI.status}`;const label=el.querySelector('b');if(label)label.textContent=cloudUI.statusLabel}
   function setCloudState(next){state=normalizeState(next);localStorage.setItem(APP_KEY,JSON.stringify(state));fillSplashProfile();if(appIsOpen())render();else updateStats()}
-  function fillSplashProfile(){if(state.profile.name&&$('#studentName')){$('#studentName').value=state.profile.name;$('#studentClass').value=state.profile.className||''}if(state.account.studentCode&&$('#studentCode'))$('#studentCode').value=state.account.studentCode}
+  function fillSplashProfile(){if($('#studentClass'))$('#studentClass').value=state.profile.className||'';if(state.account.studentCode&&$('#studentCode'))$('#studentCode').value=state.account.studentCode}
   function showResumeMessage(message){if(!state.profile.name)return;$('#resumeNote').classList.remove('hidden');$('#resumeNote').textContent=message||`Welcome back, ${state.profile.name}! Your dashboard, last study page, and saved questions are ready.`;$('#splashResumeActions').classList.remove('hidden');$('#splashResumeQuestion').disabled=!getQuestionResume()}
   function configureCloud(){if(!window.ConnectCloud)return;window.ConnectCloud.configure({
     getState:()=>state,
@@ -795,30 +795,33 @@
   function retryActivity(m,l,isBoss){const id=isBoss?bossId(m.id):activityId(l.id),old=state.activities[id]||{};state.activities[id]={index:0,answers:{},score:0,total:isBoss?50:lessonQuestions(l).length,completed:false,percent:0,startedAt:Date.now(),updatedAt:Date.now(),xpEarned:old.xpEarned||0,coinsEarned:old.coinsEarned||0};state.view='lesson';rememberPage();state.lastQuestion=null;save();renderMain()}
   function continueJourney(){const units=unitModules(),i=units.findIndex(u=>u.id===state.nav.module);if(i>=0&&i<units.length-1)setModule(units[i+1].id);else if(moduleUnlocked('story'))setModule('story');else toast('Excellent work! Choose an unlocked reader from the menu.')}
   function showCertificate(){const w=window.open('','_blank');w.document.write(`<!doctype html><html><head><title>Certificate</title><style>body{font-family:Trebuchet MS,Arial;text-align:center;padding:40px;color:#17203b}.c{max-width:900px;margin:auto;border:14px double #5b42f3;padding:70px 45px;background:linear-gradient(145deg,#fff,#f5f2ff)}h1{font-size:54px;color:#5b42f3;margin:10px}h2{font-size:34px}.name{font-size:44px;color:#0b8f82;border-bottom:2px solid #0b8f82;display:inline-block;padding:5px 35px}.sig{margin-top:55px;font-weight:bold}@media print{button{display:none}}</style></head><body><div class="c"><div>CONNECT PLUS PRIMARY 4 • TERM 1</div><h1>Certificate of Achievement</h1><p>This certificate is proudly presented to</p><div class="name">${esc(state.profile.name)}</div><h2>Outstanding English Learner</h2><p>for successfully completing the interactive Connect Plus learning journey, including all six units and the fiction reader.</p><p>Class: ${esc(state.profile.className)}</p><div class="sig">Prepared and Designed by: Mr.Mohamed Farid</div><br><button onclick="print()">Print Certificate</button></div></body></html>`);w.document.close()}
-  function setStartBusy(busy){const start=$('#startBtn'),offline=$('#offlineBtn');start.disabled=busy;offline.disabled=busy;start.textContent=busy?'Connecting securely…':'Sign In & Open My Dashboard →'}
+  function setStartBusy(busy,mode='signin'){const start=$('#startBtn'),create=$('#createAccountBtn'),offline=$('#offlineBtn');start.disabled=busy;create.disabled=busy;offline.disabled=busy;start.textContent=busy&&mode==='signin'?'Signing in…':'Sign In →';create.textContent=busy&&mode==='create'?'Creating account…':'Create New Account'}
   function openDestination(destination){$('#splash').classList.add('hidden');$('#app').classList.remove('hidden');if(destination==='page'){if(!resumeLastPage())goDashboard();return}if(destination==='question'){if(!resumeLastQuestion())goDashboard();return}state.view='dashboard';save();render()}
-  async function startApp(destination='dashboard',offline=false){
-    const name=$('#studentName').value.trim(),className=$('#studentClass').value;
-    if(!name||!className){toast('Please enter your name and choose your class.');return}
-    setStartBusy(true);
+  function displayNameFromUsername(username){return String(username||'Student').replace(/[_-]+/g,' ').toLowerCase().replace(/(^|\s)([a-z])/g,(m,space,letter)=>space+letter.toUpperCase())}
+  async function startApp(destination='dashboard',offline=false,mode='signin'){
+    const className=$('#studentClass').value,studentCode=$('#studentCode').value.trim(),normalizedCode=studentCode.toUpperCase().replace(/\s+/g,''),sameStudent=normalizedCode&&normalizedCode===String(state.account.studentCode||'').toUpperCase();
+    const name=sameStudent&&state.profile.name?state.profile.name:displayNameFromUsername(studentCode);
+    if(!className){toast('Please choose your class.');return}
+    setStartBusy(true,mode);
     try{
       if(!offline){
         if(!window.ConnectCloud||!window.ConnectCloud.available())throw new Error('Cloud connection could not load. Use Continue on This Device Only for now.');
-        const studentCode=$('#studentCode').value.trim(),pin=$('#studentPin').value.trim();
-        const result=await window.ConnectCloud.connectStudent({studentCode,pin,name,className});
+        const pin=$('#studentPin').value.trim();
+        const method=mode==='create'?'createStudent':'signInStudent';
+        const result=await window.ConnectCloud[method]({studentCode,pin,name,className});
         cloudUI.signedIn=true;
         state.account={...state.account,studentCode:result.studentCode,cloud:true};
+        state.profile={name:result.profile.full_name,className:result.profile.class_name};
         $('#studentCode').value=result.studentCode;
         $('#studentPin').value='';
       }else{
         state.profile={name,className};
       }
-      state.profile={name,className};
       openDestination(destination);
     }catch(error){
       toast(error&&error.message?error.message:'Could not connect. Please try again.');
     }finally{
-      setStartBusy(false);
+      setStartBusy(false,mode);
     }
   }
   async function handleAvatarUpload(event){const file=event.target.files&&event.target.files[0];event.target.value='';if(!file)return;try{toast('Uploading your picture…');await window.ConnectCloud.uploadAvatar(file);toast('Profile picture updated!')}catch(error){toast(error&&error.message?error.message:'Could not upload this picture.')}}
@@ -828,7 +831,8 @@
     configureCloud();
     fillSplashProfile();
     if(state.profile.name)showResumeMessage();
-    $('#startBtn').onclick=()=>startApp('dashboard',false);
+    $('#startBtn').onclick=()=>startApp('dashboard',false,'signin');
+    $('#createAccountBtn').onclick=()=>startApp('dashboard',false,'create');
     $('#offlineBtn').onclick=()=>startApp('dashboard',true);
     $('#splashResumePage').onclick=()=>startApp('page',!cloudUI.signedIn);
     $('#splashResumeQuestion').onclick=()=>startApp('question',!cloudUI.signedIn);
