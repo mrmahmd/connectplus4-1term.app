@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="teacher.css?v=20260715-5">
+  <link rel="stylesheet" href="teacher.css?v=20260716-1">
 </head>
 <body>
   <div id="loginView" class="teacher-login">
@@ -63,7 +63,7 @@
       <header class="teacher-topbar">
         <button id="openTeacherMenu" class="icon-button mobile-menu" aria-label="Open menu"><span></span><span></span><span></span></button>
         <div class="topbar-copy"><span id="viewEyebrow">TEACHER COMMAND CENTER</span><h1 id="viewTitle">Overview</h1></div>
-        <div class="topbar-actions"><span id="cloudConnection" class="connection-pill"><i></i><b>Cloud connected</b></span><button id="refreshTeacherData" class="secondary-button"><span class="button-icon" data-icon="refresh"></span><span>Refresh</span></button><button id="newStudentTop" class="primary-button compact"><span class="button-icon" data-icon="plus"></span><span>New Student</span></button></div>
+        <div class="topbar-actions"><label class="course-scope"><span>COURSE VIEW</span><select id="teacherCourseScope"><option value="all">All Courses</option><option value="connect-plus-4">Connect Plus 4</option><option value="english4-term1">English 4</option></select></label><span id="cloudConnection" class="connection-pill"><i></i><b>Cloud connected</b></span><button id="refreshTeacherData" class="secondary-button"><span class="button-icon" data-icon="refresh"></span><span>Refresh</span></button><button id="newStudentTop" class="primary-button compact"><span class="button-icon" data-icon="plus"></span><span>New Student</span></button></div>
       </header>
       <main class="teacher-main">
         <section id="overviewSection" class="dashboard-section"></section>
@@ -84,6 +84,6 @@
   <div id="teacherToast" class="teacher-toast" role="status"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
-  <script src="teacher.js?v=20260715-5" defer></script>
+  <script src="teacher.js?v=20260716-1" defer></script>
 </body>
 </html>

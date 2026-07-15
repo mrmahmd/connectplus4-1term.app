@@ -215,15 +215,18 @@
   async function readStudentSettings(identity){
     const settings={resetVersion:0,student:{},class:{},className:String(identity.className||'')};
     try{
-      const control=await client.from('student_controls').select('reset_version').eq('user_id',identity.userId).maybeSingle();
+      let control=await client.from('course_controls').select('reset_version').eq('user_id',identity.userId).eq('app_id','connect-plus-4').maybeSingle();
+      if(control.error)control=await client.from('student_controls').select('reset_version').eq('user_id',identity.userId).maybeSingle();
       if(!control.error&&control.data)settings.resetVersion=Math.max(0,Number(control.data.reset_version||0));
     }catch(error){}
     try{
-      const access=await client.from('student_lesson_access').select('lesson_id,access_status').eq('user_id',identity.userId);
+      let access=await client.from('course_student_lesson_access').select('lesson_id,access_status').eq('user_id',identity.userId).eq('app_id','connect-plus-4');
+      if(access.error)access=await client.from('student_lesson_access').select('lesson_id,access_status').eq('user_id',identity.userId);
       if(!access.error)(access.data||[]).forEach(row=>{settings.student[row.lesson_id]=row.access_status});
     }catch(error){}
     try{
-      const classAccess=await client.from('class_lesson_access').select('lesson_id,access_status').eq('class_name',settings.className);
+      let classAccess=await client.from('course_class_lesson_access').select('lesson_id,access_status').eq('class_name',settings.className).eq('app_id','connect-plus-4');
+      if(classAccess.error)classAccess=await client.from('class_lesson_access').select('lesson_id,access_status').eq('class_name',settings.className);
       if(!classAccess.error)(classAccess.data||[]).forEach(row=>{settings.class[row.lesson_id]=row.access_status});
     }catch(error){}
     return settings;
