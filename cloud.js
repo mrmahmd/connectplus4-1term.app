@@ -5,6 +5,7 @@
   const SUPABASE_PUBLISHABLE_KEY='sb_publishable_0tDt8g40fK5lr7ybDGnWjQ_D5mEFHuR';
   const STATE_VERSION=2;
   const HERO_REFRESH_MS=5*60*1000;
+  const ACCESS_REFRESH_MS=60*1000;
   const client=window.supabase&&window.supabase.createClient
     ? window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}})
     : null;
@@ -14,6 +15,7 @@
   let profile=null;
   let syncTimer=null;
   let heroTimer=null;
+  let accessTimer=null;
   let syncBusy=false;
   let syncAgain=false;
   let status={type:'local',label:'Saved on this device'};
@@ -103,7 +105,7 @@
     merged.view=newer.view||older.view||'dashboard';
     merged.sound=cleanLocal.sound!==undefined?cleanLocal.sound:(cleanRemote.sound!==undefined?cleanRemote.sound:true);
     merged.profile={name:identity.name,className:identity.className};
-    merged.account={studentCode:identity.studentCode,userId:identity.userId,cloud:true};
+    merged.account={studentCode:identity.studentCode,userId:identity.userId,cloud:true,resetVersion:Math.max(Number(cleanLocal.account&&cleanLocal.account.resetVersion||0),Number(cleanRemote.account&&cleanRemote.account.resetVersion||0),Number(identity.resetVersion||0))};
     merged.updatedAt=Math.max(localTime,remoteTime,Date.now());
     return merged;
   }
@@ -129,10 +131,6 @@
       const created=await client.from('profiles').insert({id:user.id,student_code:identity.studentCode,full_name:identity.name,class_name:identity.className}).select('student_code,full_name,class_name,avatar_path').single();
       if(created.error)throw created.error;
       row=created.data;
-    }else if(row.class_name!==identity.className){
-      const updated=await client.from('profiles').update({class_name:identity.className}).eq('id',user.id).select('student_code,full_name,class_name,avatar_path').single();
-      if(updated.error)throw updated.error;
-      row=updated.data;
     }
     profile=row;
     return row;
@@ -214,13 +212,83 @@
     heroTimer=setInterval(refreshHero,HERO_REFRESH_MS);
   }
 
+  async function readStudentSettings(identity){
+    const settings={resetVersion:0,student:{},class:{},className:String(identity.className||'')};
+    try{
+      const control=await client.from('student_controls').select('reset_version').eq('user_id',identity.userId).maybeSingle();
+      if(!control.error&&control.data)settings.resetVersion=Math.max(0,Number(control.data.reset_version||0));
+    }catch(error){}
+    try{
+      const access=await client.from('student_lesson_access').select('lesson_id,access_status').eq('user_id',identity.userId);
+      if(!access.error)(access.data||[]).forEach(row=>{settings.student[row.lesson_id]=row.access_status});
+    }catch(error){}
+    try{
+      const classAccess=await client.from('class_lesson_access').select('lesson_id,access_status').eq('class_name',settings.className);
+      if(!classAccess.error)(classAccess.data||[]).forEach(row=>{settings.class[row.lesson_id]=row.access_status});
+    }catch(error){}
+    return settings;
+  }
+
+  function cleanStateAfterTeacherReset(identity,resetVersion){
+    const clean=freshState();
+    clean.profile={name:identity.name,className:identity.className};
+    clean.account={studentCode:identity.studentCode,userId:identity.userId,cloud:true,resetVersion};
+    clean.updatedAt=Date.now();
+    return clean;
+  }
+
+  function emitAccess(settings){
+    if(hooks.onAccess)hooks.onAccess({student:clone(settings.student),class:clone(settings.class),className:settings.className,resetVersion:settings.resetVersion});
+  }
+
+  async function refreshStudentSettings(){
+    if(!session||!profile)return null;
+    try{
+      const latestProfile=await readProfile(session.user);
+      if(latestProfile)profile=latestProfile;
+      const identity={studentCode:normalizeCode(profile.student_code),userId:session.user.id,name:profile.full_name,className:profile.class_name};
+      const settings=await readStudentSettings(identity);
+      identity.resetVersion=settings.resetVersion;
+      const current=hooks.getState?hooks.getState():freshState();
+      const localResetVersion=Number(current&&current.account&&current.account.resetVersion||0);
+      const profileChanged=!current.profile||current.profile.name!==identity.name||current.profile.className!==identity.className;
+      if(settings.resetVersion>localResetVersion){
+        if(hooks.setState)hooks.setState(cleanStateAfterTeacherReset(identity,settings.resetVersion));
+        emitStatus('syncing','Teacher reset applied • saving…');
+        await pushProgress();
+      }else if(profileChanged){
+        const updated={...clone(current),profile:{name:identity.name,className:identity.className},account:{...(current.account||{}),studentCode:identity.studentCode,userId:identity.userId,cloud:true,resetVersion:Math.max(localResetVersion,settings.resetVersion)},updatedAt:Date.now()};
+        if(hooks.setState)hooks.setState(updated);
+      }
+      emitAccess(settings);
+      if(profileChanged&&hooks.onSession)hooks.onSession({signedIn:true,profile:clone(profile),studentCode:identity.studentCode});
+      return settings;
+    }catch(error){
+      return null;
+    }
+  }
+
+  function startAccessRefresh(){
+    clearInterval(accessTimer);
+    accessTimer=setInterval(refreshStudentSettings,ACCESS_REFRESH_MS);
+  }
+
   async function loadCloudState(identity){
     const remote=await readProgress(identity.userId);
-    const local=hooks.getState?hooks.getState():freshState();
-    const merged=stateForStudent(local,remote&&remote.app_state,identity);
+    const settings=await readStudentSettings(identity);
+    identity.resetVersion=settings.resetVersion;
+    let local=hooks.getState?hooks.getState():freshState();
+    let remoteState=remote&&remote.app_state;
+    if(settings.resetVersion>Number(local&&local.account&&local.account.resetVersion||0)){
+      local=cleanStateAfterTeacherReset(identity,settings.resetVersion);
+      remoteState={};
+    }
+    const merged=stateForStudent(local,remoteState,identity);
     if(hooks.setState)hooks.setState(merged);
+    emitAccess(settings);
     await Promise.all([refreshAvatar(),refreshHero()]);
     startHeroRefresh();
+    startAccessRefresh();
     await pushProgress();
     if(hooks.onSession)hooks.onSession({signedIn:true,profile:clone(profile),studentCode:identity.studentCode});
     return merged;
@@ -354,12 +422,14 @@
   async function signOut(){
     clearTimeout(syncTimer);
     clearInterval(heroTimer);
+    clearInterval(accessTimer);
     if(session)await pushProgress();
     if(client)await client.auth.signOut();
     session=null;
     profile=null;
     if(hooks.onAvatar)hooks.onAvatar('');
     if(hooks.onHero)hooks.onHero(null);
+    if(hooks.onAccess)hooks.onAccess({student:{},class:{},className:'',resetVersion:0});
     if(hooks.onSession)hooks.onSession({signedIn:false});
     emitStatus('local','Saved on this device');
   }
@@ -376,6 +446,7 @@
     scheduleSync,
     syncNow:pushProgress,
     refreshHero,
+    refreshAccess:refreshStudentSettings,
     uploadAvatar,
     signOut
   };
