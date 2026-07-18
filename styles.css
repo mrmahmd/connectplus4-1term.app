@@ -144,3 +144,10 @@ body{background:radial-gradient(circle at 10% 5%,rgba(113,87,255,.13),transparen
 @media(max-width:1250px){.developer-copy small{display:none}.developer-card{padding-left:9px}.developer-copy strong{font-size:11px}.teacher-area{gap:7px}}
 @media(max-width:900px){.brand>span:last-child{display:none}.developer-card{padding:6px 7px}.developer-copy strong{font-size:10px}.developer-social{width:27px;height:27px}.course-switch-btn{padding:9px 10px;font-size:11px}}
 @media(max-width:760px){.topbar{height:112px;min-height:112px;align-items:start;padding:8px 10px}.brand{padding-top:2px}.teacher-area{padding-top:2px}.developer-card{position:absolute;left:10px;right:10px;bottom:7px;justify-content:center;min-height:39px;padding:5px 10px}.developer-copy{flex-direction:row;align-items:center;gap:5px}.developer-copy small{display:inline;color:#dffcff;font-size:8px}.developer-copy strong{margin:0;font-size:11px}.developer-social{width:27px;height:27px}.sidebar{top:112px;height:calc(100vh - 112px)}.course-switch-btn{font-size:10px;padding:8px}.who-btn{font-size:10px;padding:8px}}
+
+/* Keep the teacher name and WHO AM I button side by side at every width. */
+.teacher-area{min-width:0;white-space:nowrap;flex-wrap:nowrap}
+.teacher-area>span{white-space:nowrap;flex:0 1 auto;min-width:0}
+.who-btn{flex:0 0 auto;min-width:92px;white-space:nowrap;line-height:1.1}
+@media(max-width:1100px){.teacher-area{gap:7px}.teacher-area>span{font-size:12px}.who-btn{padding:9px 10px;font-size:12px}}
+@media(max-width:760px){.teacher-area>span{font-size:10px}.who-btn{min-width:82px;font-size:10px;padding:8px 9px}}
