@@ -968,7 +968,18 @@
       const restored=await window.ConnectCloud.init();
       cloudUI.signedIn=!!restored.signedIn;
       updateCloudStatus();
-      if(restored.signedIn){rememberAppOpen(true);$('#app').classList.remove('hidden');render();return}
+      if(restored.signedIn){
+        rememberAppOpen(true);
+        const enteredFromPortal=new URLSearchParams(window.location.search).get('from')==='english-portal';
+        if(enteredFromPortal){
+          state.view='dashboard';
+          state.nav={...defaultState().nav,...state.nav,boss:false};
+          save();
+        }
+        $('#app').classList.remove('hidden');
+        render();
+        return
+      }
     }
     returnToPortal('signin');
   }
